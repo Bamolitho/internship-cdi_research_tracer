@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestionnaire de Candidatures</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header avec statistiques -->
+        <div class="header">
+            <h1>Gestionnaire de Candidatures</h1>
+
+            <div class="user-info">
+                <span class="welcome-text">👋 Bienvenue, {{ username }} !</span>
+                <a href="{{ url_for('logout') }}" class="logout-btn">🚪 Déconnexion</a>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalCandidatures">0</div>
+                    <div>Total candidatures</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(45deg, hwb(0 0% 97%), #bfcc0a);">
+                    <div class="stat-number" id="envoyees">0</div>
+                    <div>Envoyées</div>
+                    <div class="stat-percentage" id="envoyeesPercent">0%</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(45deg, #6f42c1, #e83e8c);">
+                    <div class="stat-number" id="relancees">0</div>
+                    <div>Relancées</div>
+                    <div class="stat-percentage" id="relanceesPercent">0%</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(45deg, #28a745, #20c997);">
+                    <div class="stat-number" id="entretiens">0</div>
+                    <div>Entretiens</div>
+                    <div class="stat-percentage" id="entretiensPercent">0%</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(45deg, #dc3545, #fd1d53);">
+                    <div class="stat-number" id="refusees">0</div>
+                    <div>Refusées</div>
+                    <div class="stat-percentage" id="refuseesPercent">0%</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(45deg, #d4bf00, #ced10d);">
+                    <div class="stat-number" id="acceptees">0</div>
+                    <div>Acceptées</div>
+                    <div class="stat-percentage" id="accepteesPercent">0%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="tauxReponse">0%</div>
+                    <div>Taux de réponse</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rappels -->
+        <div class="reminders" id="remindersSection" style="display: none;">
+            <h3>🔔 Rappels et Alertes</h3>
+            <div id="remindersList"></div>
+        </div>
+
+        <!-- Contrôles -->
+        <div class="controls">
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Statut</label>
+                    <select id="filterStatus">
+                        <option value="">Tous les statuts</option>
+                        <option value="envoyee">Envoyée</option>
+                        <option value="relancee">Relancée</option>
+                        <option value="entretien">Entretien</option>
+                        <option value="refusee">Refusée</option>
+                        <option value="acceptee">Acceptée</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Entreprise</label>
+                    <input type="text" id="filterCompany" placeholder="Nom d'entreprise...">
+                </div>
+                <div class="filter-group">
+                    <label>Compétence</label>
+                    <select id="filterSkill">
+                        <option value="">Toutes les compétences</option>
+                        <!-- Les options seront chargées dynamiquement -->
+                    </select>
+                </div>
+            </div>
+            
+            <div>
+                <button class="btn btn-success" onclick="openModal('candidatureModal')">➕ Nouvelle candidature</button>
+                <button class="btn" onclick="openModal('certificationModal')">🏆 Gérer certifications</button>
+                <button class="btn" onclick="openModal('competencesModal')">🎯 Gérer compétences</button>
+                <button class="btn" onclick="exportData()">📊 Exporter CSV</button>
+                <button class="btn" onclick="importData()">📥 Importer données</button>
+                <input type="file" id="importFile" accept=".json,.csv" style="display: none;" onchange="handleImport(event)">
+            </div>
+        </div>
+
+        <!-- Grille des candidatures -->
+        <div class="candidatures-grid" id="candidaturesGrid">
+        </div>
+    </div>
+
+    <!-- Modal Candidature -->
+    <div id="candidatureModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('candidatureModal')">&times;</span>
+            <h2 id="modalTitle">Nouvelle candidature</h2>
+            <form id="candidatureForm">
+                <div class="form-group">
+                    <label>Entreprise *</label>
+                    <input type="text" id="company" required>
+                </div>
+                <div class="form-group">
+                    <label>Poste *</label>
+                    <input type="text" id="position" required>
+                </div>
+                <div class="form-group">
+                    <label>Statut</label>
+                    <select id="status">
+                        <option value="envoyee">Envoyée</option>
+                        <option value="relancee">Relancée</option>
+                        <option value="entretien">Entretien</option>
+                        <option value="refusee">Refusée</option>
+                        <option value="acceptee">Acceptée</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Date d'envoi</label>
+                    <input type="date" id="dateEnvoi">
+                </div>
+                <div class="form-group">
+                    <label>Lien offre</label>
+                    <input type="url" id="lienOffre" placeholder="https://...">
+                </div>
+                <div class="form-group">
+                    <label>Contact (email)</label>
+                    <input type="email" id="contactEmail">
+                </div>
+                <div class="form-group">
+                    <label>Contact (téléphone)</label>
+                    <input type="tel" id="contactPhone">
+                </div>
+                <div class="form-group">
+                    <label>Compétences visées</label>
+                    <select id="competences" multiple size="6">
+                        <!-- Les options seront chargées dynamiquement -->
+                    </select>
+                    <small>Maintenez Ctrl/Cmd pour sélectionner plusieurs options</small>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="notes" placeholder="Points à aborder, contacts LinkedIn, informations importantes..."></textarea>
+                </div>
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="button" class="btn" onclick="closeModal('candidatureModal')">Annuler</button>
+                    <button type="submit" class="btn btn-success">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Compétences -->
+    <div id="competencesModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('competencesModal')">&times;</span>
+            <h2>🎯 Gestion des Compétences</h2>
+            
+            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h4>💾 Stockage des données</h4>
+                <p><strong>Emplacement :</strong> Base de données SQLite (candidatures.db)</p>
+                <p><strong>Sécurité :</strong> Fichier local avec sauvegarde automatique</p>
+                <p><strong>Sauvegarde :</strong> Backup automatique à chaque modification dans /backups/</p>
+            </div>
+            
+            <form id="competencesForm">
+                <div class="form-group">
+                    <label>Nouvelle compétence</label>
+                    <input type="text" id="newCompetence" placeholder="Ex: Kubernetes, SIEM, Forensic...">
+                </div>
+                <button type="submit" class="btn btn-success">➕ Ajouter compétence</button>
+            </form>
+            
+            <hr style="margin: 20px 0;">
+            <h3>Compétences actuelles</h3>
+            <div id="competencesList"></div>
+            
+            <hr style="margin: 20px 0;">
+            <h4>🔄 Restaurer compétences par défaut</h4>
+            <button class="btn" onclick="resetDefaultCompetences()">Réinitialiser la liste</button>
+        </div>
+    </div>
+
+    <!-- Modal Certifications -->
+    <div id="certificationModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('certificationModal')">&times;</span>
+            <h2>Gestion des Certifications</h2>
+            <form id="certificationForm">
+                <div class="form-group">
+                    <label>Nom de la certification</label>
+                    <input type="text" id="certName" placeholder="Ex: CCNA, Security+, CEH...">
+                </div>
+                <div class="form-group">
+                    <label>Date d'obtention</label>
+                    <input type="date" id="certObtention">
+                </div>
+                <div class="form-group">
+                    <label>Date d'expiration</label>
+                    <input type="date" id="certExpiration">
+                </div>
+                <button type="submit" class="btn btn-success">Ajouter certification</button>
+            </form>
+            <hr style="margin: 20px 0;">
+            <h3>Certifications actuelles</h3>
+            <div id="certificationsList"></div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
+
+

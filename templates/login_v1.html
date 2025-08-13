@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion - Gestionnaire de Candidatures</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='login_css.css') }}">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>Gestionnaire de Candidatures</h1>
+                <p>Connectez-vous pour accéder à vos candidatures</p>
+            </div>
+            
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label for="username">
+                        <span class="label-icon">👤</span>
+                        Nom d'utilisateur ou Email
+                    </label>
+                    <input type="text" id="username" name="username" required 
+                           placeholder="Votre nom d'utilisateur ou email">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">
+                        <span class="label-icon">🔒</span>
+                        Mot de passe
+                    </label>
+                    <input type="password" id="password" name="password" required 
+                           placeholder="Votre mot de passe">
+                </div>
+                
+                <button type="submit" class="login-btn">
+                    <span class="btn-text">Se connecter</span>
+                    <span class="btn-icon">🚀</span>
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                <p>Pas encore de compte ?</p>
+                <a href="{{ url_for('register') }}" class="register-link">
+                    Créer un compte
+                </a>
+            </div>
+            
+            <div id="error-message" class="error-message" style="display: none;"></div>
+            <div id="loading" class="loading" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p>Connexion en cours...</p>
+            </div>
+        </div>
+        
+        <div class="features-section">
+            <h3>✨ Fonctionnalités</h3>
+            <div class="features-grid">
+                <div class="feature-item">
+                    <span class="feature-icon">📊</span>
+                    <h4>Suivi complet</h4>
+                    <p>Suivez toutes vos candidatures en temps réel</p>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">📈</span>
+                    <h4>Statistiques</h4>
+                    <p>Analysez vos performances et taux de réponse</p>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">🔔</span>
+                    <h4>Rappels</h4>
+                    <p>Ne manquez jamais une relance importante</p>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">🏆</span>
+                    <h4>Certifications</h4>
+                    <p>Gérez vos certifications et dates d'expiration</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const errorDiv = document.getElementById('error-message');
+            const loadingDiv = document.getElementById('loading');
+            const submitBtn = document.querySelector('.login-btn');
+            
+            // Réinitialiser les messages
+            errorDiv.style.display = 'none';
+            loadingDiv.style.display = 'block';
+            submitBtn.disabled = true;
+            
+            const formData = {
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value
+            };
+            
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Succès - redirection
+                    window.location.href = result.redirect;
+                } else {
+                    // Erreur
+                    errorDiv.textContent = result.error;
+                    errorDiv.style.display = 'block';
+                    loadingDiv.style.display = 'none';
+                    submitBtn.disabled = false;
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Erreur de connexion. Veuillez réessayer.';
+                errorDiv.style.display = 'block';
+                loadingDiv.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        });
+        
+        // Effet de particules en arrière-plan
+        function createParticle() {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDuration = (Math.random() * 3 + 2) + 's';
+            particle.style.opacity = Math.random();
+            document.body.appendChild(particle);
+            
+            setTimeout(() => {
+                particle.remove();
+            }, 5000);
+        }
+        
+        // Créer des particules périodiquement
+        setInterval(createParticle, 300);
+        
+        // Animation d'entrée
+        window.addEventListener('load', function() {
+            document.querySelector('.login-card').classList.add('animate-in');
+            document.querySelector('.features-section').classList.add('animate-in');
+        });
+        
+        // Raccourci clavier Enter
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !document.getElementById('loginForm').disabled) {
+                document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inscription - Gestionnaire de Candidatures</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='register_css.css') }}">
+</head>
+<body>
+    <div class="register-container">
+        <div class="register-card">
+            <div class="register-header">
+                <h1>🚀 Créer un compte</h1>
+                <p>Rejoignez notre plateforme de gestion de candidatures</p>
+            </div>
+            
+            <form id="registerForm" class="register-form">
+                <div class="form-group">
+                    <label for="username">
+                        <span class="label-icon">👤</span>
+                        Nom d'utilisateur
+                    </label>
+                    <input type="text" id="username" name="username" required 
+                           placeholder="Choisissez un nom d'utilisateur unique"
+                           minlength="3" maxlength="20">
+                    <small class="field-hint">3-20 caractères, lettres et chiffres uniquement</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">
+                        <span class="label-icon">📧</span>
+                        Adresse email
+                    </label>
+                    <input type="email" id="email" name="email" required 
+                           placeholder="votre.email@exemple.com">
+                    <small class="field-hint">Utilisé pour la récupération de compte</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">
+                        <span class="label-icon">🔒</span>
+                        Mot de passe
+                    </label>
+                    <input type="password" id="password" name="password" required 
+                           placeholder="Créez un mot de passe sécurisé"
+                           minlength="6">
+                    <small class="field-hint">Au moins 6 caractères</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirmPassword">
+                        <span class="label-icon">🔐</span>
+                        Confirmer le mot de passe
+                    </label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" required 
+                           placeholder="Répétez votre mot de passe">
+                    <small class="field-hint">Doit être identique au mot de passe</small>
+                </div>
+                
+                <div class="password-strength" id="passwordStrength" style="display: none;">
+                    <div class="strength-bar">
+                        <div class="strength-fill"></div>
+                    </div>
+                    <span class="strength-text">Faible</span>
+                </div>
+                
+                <button type="submit" class="register-btn">
+                    <span class="btn-text">Créer mon compte</span>
+                    <span class="btn-icon">✨</span>
+                </button>
+            </form>
+            
+            <div class="register-footer">
+                <p>Déjà un compte ?</p>
+                <a href="{{ url_for('login') }}" class="login-link">
+                    Se connecter
+                </a>
+            </div>
+            
+            <div id="error-message" class="error-message" style="display: none;"></div>
+            <div id="success-message" class="success-message" style="display: none;"></div>
+            <div id="loading" class="loading" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p>Création du compte...</p>
+            </div>
+        </div>
+        
+        <div class="benefits-section">
+            <h3>🎯 Pourquoi nous rejoindre ?</h3>
+            <div class="benefits-list">
+                <div class="benefit-item">
+                    <span class="benefit-icon">🔒</span>
+                    <div>
+                        <h4>Données sécurisées</h4>
+                        <p>Vos informations sont protégées et privées</p>
+                    </div>
+                </div>
+                <div class="benefit-item">
+                    <span class="benefit-icon">⚡</span>
+                    <div>
+                        <h4>Interface rapide</h4>
+                        <p>Gérez vos candidatures en quelques clics</p>
+                    </div>
+                </div>
+                <div class="benefit-item">
+                    <span class="benefit-icon">📊</span>
+                    <div>
+                        <h4>Analyses détaillées</h4>
+                        <p>Suivez vos performances et optimisez</p>
+                    </div>
+                </div>
+                <div class="benefit-item">
+                    <span class="benefit-icon">🔄</span>
+                    <div>
+                        <h4>Synchronisation</h4>
+                        <p>Accédez à vos données depuis n'importe où</p>
+                    </div>
+                </div>
+                <div class="benefit-item">
+                    <span class="benefit-icon">🎁</span>
+                    <div>
+                        <h4>Gratuit</h4>
+                        <p>Toutes les fonctionnalités, sans frais</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Validation en temps réel
+        const form = document.getElementById('registerForm');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        const usernameInput = document.getElementById('username');
+        const emailInput = document.getElementById('email');
+        
+        // Validation du nom d'utilisateur
+        usernameInput.addEventListener('input', function() {
+            const username = this.value;
+            const isValid = /^[a-zA-Z0-9_]{3,20}$/.test(username);
+            
+            if (username.length > 0) {
+                this.style.borderColor = isValid ? '#28a745' : '#dc3545';
+            }
+        });
+        
+        // Validation de l'email
+        emailInput.addEventListener('input', function() {
+            const email = this.value;
+            const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            
+            if (email.length > 0) {
+                this.style.borderColor = isValid ? '#28a745' : '#dc3545';
+            }
+        });
+        
+        // Vérification de la force du mot de passe
+        passwordInput.addEventListener('input', function() {
+            const password = this.value;
+            const strengthDiv = document.getElementById('passwordStrength');
+            const strengthFill = document.querySelector('.strength-fill');
+            const strengthText = document.querySelector('.strength-text');
+            
+            if (password.length > 0) {
+                strengthDiv.style.display = 'block';
+                
+                let strength = 0;
+                if (password.length >= 6) strength += 1;
+                if (password.match(/[a-z]/)) strength += 1;
+                if (password.match(/[A-Z]/)) strength += 1;
+                if (password.match(/[0-9]/)) strength += 1;
+                if (password.match(/[^a-zA-Z0-9]/)) strength += 1;
+                
+                const percentage = (strength / 5) * 100;
+                strengthFill.style.width = percentage + '%';
+                
+                if (strength <= 2) {
+                    strengthFill.style.background = '#dc3545';
+                    strengthText.textContent = 'Faible';
+                    strengthText.style.color = '#dc3545';
+                } else if (strength <= 3) {
+                    strengthFill.style.background = '#ffc107';
+                    strengthText.textContent = 'Moyen';
+                    strengthText.style.color = '#ffc107';
+                } else {
+                    strengthFill.style.background = '#28a745';
+                    strengthText.textContent = 'Fort';
+                    strengthText.style.color = '#28a745';
+                }
+            } else {
+                strengthDiv.style.display = 'none';
+            }
+            
+            checkPasswordMatch();
+        });
+        
+        // Vérification de la correspondance des mots de passe
+        confirmPasswordInput.addEventListener('input', checkPasswordMatch);
+        
+        function checkPasswordMatch() {
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+            
+            if (confirmPassword.length > 0) {
+                const match = password === confirmPassword;
+                confirmPasswordInput.style.borderColor = match ? '#28a745' : '#dc3545';
+            }
+        }
+        
+        // Soumission du formulaire
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const errorDiv = document.getElementById('error-message');
+            const successDiv = document.getElementById('success-message');
+            const loadingDiv = document.getElementById('loading');
+            const submitBtn = document.querySelector('.register-btn');
+            
+            // Réinitialiser les messages
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+            loadingDiv.style.display = 'block';
+            submitBtn.disabled = true;
+            
+            // Validation côté client
+            const username = usernameInput.value;
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+            
+            if (password !== confirmPassword) {
+                errorDiv.textContent = 'Les mots de passe ne correspondent pas';
+                errorDiv.style.display = 'block';
+                loadingDiv.style.display = 'none';
+                submitBtn.disabled = false;
+                return;
+            }
+            
+            if (password.length < 6) {
+                errorDiv.textContent = 'Le mot de passe doit contenir au moins 6 caractères';
+                errorDiv.style.display = 'block';
+                loadingDiv.style.display = 'none';
+                submitBtn.disabled = false;
+                return;
+            }
+            
+            const formData = {
+                username: username,
+                email: email,
+                password: password
+            };
+            
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    successDiv.textContent = 'Compte créé avec succès ! Redirection...';
+                    successDiv.style.display = 'block';
+                    loadingDiv.style.display = 'none';
+                    
+                    // Redirection après 2 secondes
+                    setTimeout(() => {
+                        window.location.href = result.redirect;
+                    }, 2000);
+                } else {
+                    errorDiv.textContent = result.error;
+                    errorDiv.style.display = 'block';
+                    loadingDiv.style.display = 'none';
+                    submitBtn.disabled = false;
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Erreur de connexion. Veuillez réessayer.';
+                errorDiv.style.display = 'block';
+                loadingDiv.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        });
+        
+        // Effet de particules
+        function createParticle() {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDuration = (Math.random() * 4 + 3) + 's';
+            particle.style.opacity = Math.random() * 0.5 + 0.2;
+            document.body.appendChild(particle);
+            
+            setTimeout(() => {
+                particle.remove();
+            }, 7000);
+        }
+        
+        setInterval(createParticle, 400);
+        
+        // Animation d'entrée
+        window.addEventListener('load', function() {
+            document.querySelector('.register-card').classList.add('animate-in');
+            document.querySelector('.benefits-section').classList.add('animate-in');
+        });
+    </script>
+</body>
+</html>
