@@ -10,7 +10,7 @@ import io
 import shutil
 
 app = Flask(__name__)
-app.secret_key = 'votre_cle_secrete_unique_ici_2024'  # Changez cette clé en production
+app.secret_key = 'okay_2025-08'  
 
 # Configuration
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -19,98 +19,146 @@ BACKUP_DIR = os.path.normpath(os.path.join(base_dir, 'backups'))
 
 def init_db():
     """Initialise la base de données avec les tables nécessaires"""
+    # Créer le dossier de sauvegarde s'il n'existe pas
     if not os.path.exists(BACKUP_DIR):
         os.makedirs(BACKUP_DIR)
     
+    # Vérifier si la base de données existe
     db_exists = os.path.exists(DATABASE)
     
-    conn = sqlite3.connect(DATABASE)
-    cursor = conn.cursor()
-    
-    # Table utilisateurs
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            date_creation TEXT,
-            last_login TEXT
-        )
-    ''')
-    
-    # Table candidatures
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS candidatures (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            company TEXT NOT NULL,
-            position TEXT NOT NULL,
-            status TEXT DEFAULT 'envoyee',
-            date_envoi TEXT,
-            lien_offre TEXT,
-            contact_email TEXT,
-            contact_phone TEXT,
-            competences TEXT,
-            notes TEXT,
-            date_creation TEXT,
-            relances TEXT,
-            user_id INTEGER REFERENCES users(id)
-        )
-    ''')
-    
-    # Table certifications
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS certifications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            obtention TEXT,
-            expiration TEXT,
-            date_creation TEXT,
-            user_id INTEGER REFERENCES users(id)
-        )
-    ''')
-    
-    # Table compétences - Recréée proprement
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS competences (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            date_creation TEXT,
-            user_id INTEGER REFERENCES users(id)
-        )
-    ''')
-    
-    # Migration sécurisée des données existantes
     try:
-        cursor.execute('PRAGMA table_info(candidatures)')
-        columns = [column[1] for column in cursor.fetchall()]
-        if 'user_id' not in columns:
-            cursor.execute('ALTER TABLE candidatures ADD COLUMN user_id INTEGER REFERENCES users(id)')
+        # Créer la connexion (crée le fichier DB s'il n'existe pas)
+        conn = sqlite3.connect(DATABASE)
+        cursor = conn.cursor()
         
-        cursor.execute('PRAGMA table_info(certifications)')
-        columns = [column[1] for column in cursor.fetchall()]
-        if 'user_id' not in columns:
-            cursor.execute('ALTER TABLE certifications ADD COLUMN user_id INTEGER REFERENCES users(id)')
-        
-        cursor.execute('PRAGMA table_info(competences)')
-        columns = [column[1] for column in cursor.fetchall()]
-        if 'user_id' not in columns:
-            cursor.execute('ALTER TABLE competences ADD COLUMN user_id INTEGER REFERENCES users(id)')
-        
-        # Créer un index unique seulement s'il n'existe pas
+        # Activer les clés étrangères
+        cursor.execute('PRAGMA foreign_keys = ON')
+                
+        # Table utilisateurs
         cursor.execute('''
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_competence_user 
-            ON competences(name, user_id)
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_login TEXT
+            )
         ''')
         
+        # Table candidatures
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS candidatures (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company TEXT NOT NULL,
+                position TEXT NOT NULL,
+                status TEXT DEFAULT 'envoyee' CHECK (status IN ('envoyee', 'relancee', 'entretien', 'refusee', 'acceptee')),
+                date_envoi TEXT,
+                lien_offre TEXT,
+                contact_email TEXT,
+                contact_phone TEXT,
+                competences TEXT DEFAULT '[]',
+                notes TEXT,
+                date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                relances TEXT DEFAULT '[]',
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+            )
+        ''')
+        
+        # Table certifications
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS certifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                obtention TEXT,
+                expiration TEXT,
+                date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+            )
+        ''')
+        
+        # Table compétences
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS competences (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                date_creation TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                UNIQUE(name, user_id)
+            )
+        ''')
+        
+        # Créer des index pour améliorer les performances
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_candidatures_user ON candidatures(user_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_candidatures_status ON candidatures(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_certifications_user ON certifications(user_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_competences_user ON competences(user_id)')
+        
+        # Migration sécurisée pour les anciennes versions
+        try:
+            # Vérifier et ajouter user_id si nécessaire
+            for table in ['candidatures', 'certifications', 'competences']:
+                cursor.execute(f'PRAGMA table_info({table})')
+                columns = [column[1] for column in cursor.fetchall()]
+                if 'user_id' not in columns:
+                    cursor.execute(f'ALTER TABLE {table} ADD COLUMN user_id INTEGER REFERENCES users(id)')
+                    print(f"Colonne user_id ajoutée à la table {table}")
+                    
+        except sqlite3.Error as e:
+            print(f"Avertissement lors de la migration : {e}")
+        
+        # Valider la structure de la base de données
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = [table[0] for table in cursor.fetchall()]
+        expected_tables = ['users', 'candidatures', 'certifications', 'competences']
+        
+        for table in expected_tables:
+            if table in tables:
+                print(f"Table '{table}' prête")
+            else:
+                print(f"Erreur: Table '{table}' manquante")
+        
+        conn.commit()
+        conn.close()
+        
+        if not db_exists:
+            print(f"Base de données créée avec succès : {DATABASE}")
+        else:
+            print(f"Base de données mise à jour : {DATABASE}")
+            
+        return True
+        
     except sqlite3.Error as e:
-        print(f"Erreur lors de la migration : {e}")
-        # Continuer malgré l'erreur
-    
-    conn.commit()
-    conn.close()
-    
-    print(f"Base de données {'créée' if not db_exists else 'mise à jour'} : {DATABASE}")
+        return False
+    except Exception as e:
+        return False
+
+def check_database():
+    """Vérifie que la base de données est accessible et contient les tables nécessaires"""
+    try:
+        conn = sqlite3.connect(DATABASE)
+        cursor = conn.cursor()
+        
+        # Vérifier les tables
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = [table[0] for table in cursor.fetchall()]
+        expected_tables = ['users', 'candidatures', 'certifications', 'competences']
+        
+        missing_tables = [table for table in expected_tables if table not in tables]
+        
+        if missing_tables:
+            conn.close()
+            return False
+        
+        # Vérifier l'accès en écriture
+        cursor.execute('CREATE TABLE IF NOT EXISTS test_table (id INTEGER)')
+        cursor.execute('DROP TABLE test_table')
+        
+        conn.close()
+        return True
+        
+    except sqlite3.Error as e:
+        return False
 
 def backup_database():
     """Crée une sauvegarde de la base de données"""
@@ -249,15 +297,12 @@ def api_register():
         
     except sqlite3.IntegrityError as e:
         conn.close()
-        print(f"Erreur IntegrityError: {e}")
         return jsonify({'success': False, 'error': 'Nom d\'utilisateur ou email déjà utilisé'})
     except sqlite3.Error as e:
         conn.close()
-        print(f"Erreur SQLite: {e}")
         return jsonify({'success': False, 'error': 'Erreur de base de données lors de la création du compte'})
     except Exception as e:
         conn.close()
-        print(f"Erreur générale: {e}")
         return jsonify({'success': False, 'error': 'Erreur inattendue lors de la création du compte'})
 
 # Routes principales
@@ -756,8 +801,425 @@ def import_data():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+# Routes pour la gestion des fichiers de template
+@app.route('/api/export/json')
+@login_required
+def export_json():
+    """Export des données en format JSON"""
+    user_id = get_current_user_id()
+    
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    
+    # Récupérer toutes les données utilisateur
+    cursor.execute('SELECT * FROM candidatures WHERE user_id = ?', (user_id,))
+    candidatures_data = []
+    
+    for row in cursor.fetchall():
+        candidature = {
+            'company': row[1],
+            'position': row[2],
+            'status': row[3],
+            'dateEnvoi': row[4],
+            'lienOffre': row[5],
+            'contactEmail': row[6],
+            'contactPhone': row[7],
+            'competences': json.loads(row[8]) if row[8] else [],
+            'notes': row[9],
+            'relances': json.loads(row[11]) if row[11] else []
+        }
+        candidatures_data.append(candidature)
+    
+    # Récupérer les certifications
+    cursor.execute('SELECT * FROM certifications WHERE user_id = ?', (user_id,))
+    certifications_data = []
+    
+    for row in cursor.fetchall():
+        certification = {
+            'name': row[1],
+            'obtention': row[2],
+            'expiration': row[3]
+        }
+        certifications_data.append(certification)
+    
+    # Récupérer les compétences
+    cursor.execute('SELECT name FROM competences WHERE user_id = ?', (user_id,))
+    competences_data = [row[0] for row in cursor.fetchall()]
+    
+    conn.close()
+    
+    # Créer le fichier JSON
+    export_data = {
+        'candidatures': candidatures_data,
+        'certifications': certifications_data,
+        'competences': competences_data,
+        'export_date': datetime.now().isoformat(),
+        'version': '1.0'
+    }
+    
+    # Créer la réponse
+    json_str = json.dumps(export_data, indent=2, ensure_ascii=False)
+    response = send_file(
+        io.BytesIO(json_str.encode('utf-8')),
+        mimetype='application/json',
+        as_attachment=True,
+        download_name=f"candidatures_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    )
+    
+    return response
+
+# Route pour les templates d'import
+@app.route('/api/template/csv')
+def download_csv_template():
+    """Télécharger un template CSV pour l'import"""
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # En-têtes du template
+    writer.writerow([
+        'Entreprise', 'Poste', 'Statut', 'Date envoi', 'Lien offre',
+        'Contact email', 'Contact téléphone', 'Compétences', 'Notes'
+    ])
+    
+    # Ligne d'exemple
+    writer.writerow([
+        'Exemple Entreprise',
+        'Développeur Python',
+        'envoyee',
+        '2024-01-15',
+        'https://exemple.com/offre',
+        'rh@exemple.com',
+        '0123456789',
+        'python, django, postgresql',
+        'Candidature très intéressante'
+    ])
+    
+    output.seek(0)
+    response = send_file(
+        io.BytesIO(output.getvalue().encode('utf-8-sig')),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name='template_candidatures.csv'
+    )
+    
+    return response
+
+# Routes pour la gestion du profil utilisateur
+@app.route('/api/profile', methods=['GET'])
+@login_required
+def get_profile():
+    """Récupérer les informations du profil utilisateur"""
+    user_id = get_current_user_id()
+    
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    cursor.execute('SELECT username, email, date_creation, last_login FROM users WHERE id = ?', 
+                  (user_id,))
+    user_data = cursor.fetchone()
+    
+    if user_data:
+        # Statistiques utilisateur
+        cursor.execute('SELECT COUNT(*) FROM candidatures WHERE user_id = ?', (user_id,))
+        total_candidatures = cursor.fetchone()[0]
+        
+        cursor.execute('SELECT COUNT(*) FROM certifications WHERE user_id = ?', (user_id,))
+        total_certifications = cursor.fetchone()[0]
+        
+        cursor.execute('SELECT COUNT(*) FROM competences WHERE user_id = ?', (user_id,))
+        total_competences = cursor.fetchone()[0]
+        
+        profile = {
+            'username': user_data[0],
+            'email': user_data[1],
+            'dateCreation': user_data[2],
+            'lastLogin': user_data[3],
+            'stats': {
+                'candidatures': total_candidatures,
+                'certifications': total_certifications,
+                'competences': total_competences
+            }
+        }
+        
+        conn.close()
+        return jsonify(profile)
+    
+    conn.close()
+    return jsonify({'error': 'Utilisateur non trouvé'}), 404
+
+@app.route('/api/profile/update', methods=['PUT'])
+@login_required
+def update_profile():
+    """Mettre à jour le profil utilisateur"""
+    user_id = get_current_user_id()
+    data = request.json
+    
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    
+    try:
+        # Vérifier si l'email est déjà utilisé par un autre utilisateur
+        if 'email' in data:
+            cursor.execute('SELECT id FROM users WHERE email = ? AND id != ?', 
+                          (data['email'], user_id))
+            if cursor.fetchone():
+                conn.close()
+                return jsonify({'success': False, 'error': 'Email déjà utilisé par un autre compte'})
+        
+        # Mettre à jour les champs fournis
+        update_fields = []
+        values = []
+        
+        if 'email' in data:
+            update_fields.append('email = ?')
+            values.append(data['email'])
+        
+        if update_fields:
+            values.append(user_id)
+            query = f"UPDATE users SET {', '.join(update_fields)} WHERE id = ?"
+            cursor.execute(query, values)
+            conn.commit()
+        
+        conn.close()
+        return jsonify({'success': True})
+        
+    except sqlite3.Error as e:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Erreur lors de la mise à jour'})
+
+@app.route('/api/profile/change-password', methods=['PUT'])
+@login_required
+def change_password():
+    """Changer le mot de passe utilisateur"""
+    user_id = get_current_user_id()
+    data = request.json
+    
+    current_password = data.get('currentPassword')
+    new_password = data.get('newPassword')
+    
+    if not current_password or not new_password:
+        return jsonify({'success': False, 'error': 'Mots de passe requis'})
+    
+    if len(new_password) < 6:
+        return jsonify({'success': False, 'error': 'Le nouveau mot de passe doit contenir au moins 6 caractères'})
+    
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    
+    # Vérifier le mot de passe actuel
+    cursor.execute('SELECT password_hash FROM users WHERE id = ?', (user_id,))
+    current_hash = cursor.fetchone()[0]
+    
+    if not check_password_hash(current_hash, current_password):
+        conn.close()
+        return jsonify({'success': False, 'error': 'Mot de passe actuel incorrect'})
+    
+    # Mettre à jour le mot de passe
+    new_hash = generate_password_hash(new_password)
+    cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?', 
+                  (new_hash, user_id))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
+
+# Routes pour la gestion des sauvegardes
+@app.route('/api/backup/create', methods=['POST'])
+@login_required
+def create_backup():
+    """Créer une sauvegarde manuelle"""
+    try:
+        backup_database()
+        return jsonify({'success': True, 'message': 'Sauvegarde créée avec succès'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/backup/list', methods=['GET'])
+@login_required
+def list_backups():
+    """Lister les sauvegardes disponibles"""
+    try:
+        if not os.path.exists(BACKUP_DIR):
+            return jsonify([])
+        
+        backups = []
+        for filename in os.listdir(BACKUP_DIR):
+            if filename.startswith('backup_') and filename.endswith('.db'):
+                filepath = os.path.join(BACKUP_DIR, filename)
+                stat = os.stat(filepath)
+                backups.append({
+                    'filename': filename,
+                    'size': stat.st_size,
+                    'date': datetime.fromtimestamp(stat.st_mtime).isoformat()
+                })
+        
+        # Trier par date (plus récent en premier)
+        backups.sort(key=lambda x: x['date'], reverse=True)
+        return jsonify(backups)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Route pour la recherche
+@app.route('/api/candidatures/search', methods=['GET'])
+@login_required
+def search_candidatures():
+    """Rechercher dans les candidatures"""
+    user_id = get_current_user_id()
+    query = request.args.get('q', '').strip()
+    status_filter = request.args.get('status', '')
+    
+    if not query and not status_filter:
+        return jsonify([])
+    
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    
+    # Construire la requête SQL
+    sql = 'SELECT * FROM candidatures WHERE user_id = ?'
+    params = [user_id]
+    
+    if query:
+        sql += ' AND (company LIKE ? OR position LIKE ? OR notes LIKE ?)'
+        search_term = f'%{query}%'
+        params.extend([search_term, search_term, search_term])
+    
+    if status_filter:
+        sql += ' AND status = ?'
+        params.append(status_filter)
+    
+    sql += ' ORDER BY date_creation DESC'
+    
+    cursor.execute(sql, params)
+    
+    candidatures = []
+    for row in cursor.fetchall():
+        candidature = {
+            'id': row[0],
+            'company': row[1],
+            'position': row[2],
+            'status': row[3],
+            'dateEnvoi': row[4],
+            'lienOffre': row[5],
+            'contactEmail': row[6],
+            'contactPhone': row[7],
+            'competences': json.loads(row[8]) if row[8] else [],
+            'notes': row[9],
+            'dateCreation': row[10],
+            'relances': json.loads(row[11]) if row[11] else []
+        }
+        candidatures.append(candidature)
+    
+    conn.close()
+    return jsonify(candidatures)
+
+# Route pour les statistiques avancées
+@app.route('/api/stats/advanced')
+@login_required
+def get_advanced_stats():
+    """Statistiques avancées"""
+    user_id = get_current_user_id()
+    
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    
+    # Statistiques par mois
+    cursor.execute('''
+        SELECT strftime('%Y-%m', date_creation) as month, COUNT(*) 
+        FROM candidatures 
+        WHERE user_id = ? 
+        GROUP BY month 
+        ORDER BY month DESC 
+        LIMIT 12
+    ''', (user_id,))
+    monthly_stats = dict(cursor.fetchall())
+    
+    # Entreprises les plus contactées
+    cursor.execute('''
+        SELECT company, COUNT(*) as count 
+        FROM candidatures 
+        WHERE user_id = ? 
+        GROUP BY company 
+        ORDER BY count DESC 
+        LIMIT 10
+    ''', (user_id,))
+    top_companies = dict(cursor.fetchall())
+    
+    # Temps moyen de réponse (approximatif)
+    cursor.execute('''
+        SELECT AVG(julianday(date_creation) - julianday(date_envoi)) as avg_days
+        FROM candidatures 
+        WHERE user_id = ? AND date_envoi IS NOT NULL AND status IN ('entretien', 'refusee', 'acceptee')
+    ''', (user_id,))
+    avg_response_time = cursor.fetchone()[0] or 0
+    
+    # Compétences les plus demandées
+    cursor.execute('SELECT competences FROM candidatures WHERE user_id = ?', (user_id,))
+    all_competences = []
+    for row in cursor.fetchall():
+        if row[0]:
+            comp_list = json.loads(row[0])
+            all_competences.extend(comp_list)
+    
+    # Compter les occurrences
+    competence_counts = {}
+    for comp in all_competences:
+        competence_counts[comp] = competence_counts.get(comp, 0) + 1
+    
+    # Top 10 des compétences
+    top_competences = dict(sorted(competence_counts.items(), 
+                                key=lambda x: x[1], reverse=True)[:10])
+    
+    conn.close()
+    
+    return jsonify({
+        'monthlyStats': monthly_stats,
+        'topCompanies': top_companies,
+        'avgResponseTime': round(avg_response_time, 1),
+        'topCompetences': top_competences
+    })
+
+# Gestion des erreurs
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'error': 'Ressource non trouvée'}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({'error': 'Erreur serveur interne'}), 500
+
+@app.errorhandler(403)
+def forbidden(error):
+    return jsonify({'error': 'Accès non autorisé'}), 403
+
+# Middleware pour les en-têtes de sécurité
+@app.after_request
+def after_request(response):
+    """Ajouter des en-têtes de sécurité"""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    return response
+
 if __name__ == '__main__':
-    init_db()
-    print("🚀 Serveur démarré avec authentification complète")
-    print("📱 Interface responsive avec sécurité multi-utilisateurs")
-    app.run(debug=True)
+    print("Démarrage de l'application de suivi des candidatures...")
+    # Initialiser la base de données
+    if init_db():        
+        # Vérification supplémentaire
+        if check_database():
+            print("Vérification de la base de données réussie")
+        else:
+            print("Problème détecté lors de la vérification")
+    else:
+        exit(1)
+    
+    print("=" * 50)
+    print("Accédez à l'application sur : http://127.0.0.1:5000")
+    print("=" * 50)
+    
+    try:
+        app.run(debug=True, host='127.0.0.1', port=5000)
+    except KeyboardInterrupt:
+        print("\nArrêt du serveur demandé par l'utilisateur")
+    except Exception as e:
+        print(f"\nErreur lors du démarrage du serveur : {e}")
+        exit(1)
