@@ -2,9 +2,6 @@
 
 ## 🎯 Pourquoi nous rejoindre ?
 
-### 🔒 Données sécurisées
-Vos informations sont protégées et privées.
-
 ### ⚡ Interface rapide
 Gérez vos candidatures en quelques clics.
 
