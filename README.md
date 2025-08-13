@@ -1,2 +1,34 @@
-# internshit-cdi_research_tracer
-Have an eye on your jobs application, organize the way you apply for jobs.
+# Bienvenue sur notre plateforme de gestion de candidatures
+
+## 🎯 Pourquoi nous rejoindre ?
+
+### 🔒 Données sécurisées
+Vos informations sont protégées et privées.
+
+### ⚡ Interface rapide
+Gérez vos candidatures en quelques clics.
+
+### 📊 Analyses détaillées
+Suivez vos performances et optimisez vos démarches.
+
+### 🔄 Synchronisation
+Accédez à vos données depuis n'importe où.
+
+### 🎁 Gratuit
+Toutes les fonctionnalités, sans frais.
+
+---
+
+## ✨ Fonctionnalités
+
+### 📊 Suivi complet
+Suivez toutes vos candidatures en temps réel.
+
+### 📈 Statistiques
+Analysez vos performances et taux de réponse.
+
+### 🔔 Rappels
+Ne manquez jamais une relance importante.
+
+### 🏆 Certifications
+Gérez vos certifications et dates d'expiration.
