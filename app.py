@@ -14,8 +14,11 @@ app.secret_key = 'okay_2025-08'
 
 # Configuration
 base_dir = os.path.dirname(os.path.abspath(__file__))
-DATABASE = os.path.join(base_dir, 'candidatures.db')
-BACKUP_DIR = os.path.normpath(os.path.join(base_dir, 'backups'))
+DATABASE = os.path.join(base_dir, "instance", 'candidatures.db')
+BACKUP_DIR = os.path.normpath(os.path.join(base_dir, "instance", 'backups'))
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DATABASE}"
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{BACKUP_DIR}"
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 def init_db():
     """Initialise la base de données avec les tables nécessaires"""
